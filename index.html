@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Refile Circles</title>
+		<!-- Load the Paper.js library -->
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/paper.js/0.12.17/paper-full.min.js" integrity="sha512-NApOOz1j2Dz1PKsIvg1hrXLzDFd62+J0qOPIhm8wueAnk4fQdSclq6XvfzvejDs6zibSoDC+ipl1dC66m+EoSQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+		<!-- Link to drawing script -->
+		<script type="text/javascript" src="script.js"></script>
+		<!-- Link to stylesheet -->
+		<link rel="stylesheet" type="text/css" href="styles.css"></link>
+	</head>
+	<body>
+		<div hidden>
+			<!-- Load all necessary images -->
+			<img src="elements/Beige.png" id="Beige"></img>
+			<img src="elements/Black.png" id="Black"></img>
+			<img src="elements/Blue.png" id="Blue"></img>
+			<img src="elements/Brown.png" id="Brown"></img>
+			<img src="elements/Cream.png" id="Cream"></img>
+			<img src="elements/Gold.png" id="Gold"></img>
+			<img src="elements/Green.png" id="Green"></img>
+			<img src="elements/Grey.png" id="Grey"></img>
+			<img src="elements/Indigo.png" id="Indigo"></img>
+			<img src="elements/Metallic.png" id="Metallic"></img>
+			<img src="elements/Navy.png" id="Navy"></img>
+			<img src="elements/Orange.png" id="Orange"></img>
+			<img src="elements/Pink.png" id="Pink"></img>
+			<img src="elements/Purple.png" id="Purple"></img>
+			<img src="elements/Rainbow.png" id="Rainbow"></img>
+			<img src="elements/Red.png" id="Red"></img>
+			<img src="elements/Silver.png" id="Silver"></img>
+			<img src="elements/Sky.png" id="Sky"></img>
+			<img src="elements/Transparent.png" id="Transparent"></img>
+			<img src="elements/Vermilion.png" id="Vermilion"></img>
+			<img src="elements/White.png" id="White"></img>
+			<img src="elements/Yellow.png" id="Yellow"></img>
+		</div>
+		<div style="text-align: center;">
+			<p>This will be a full editor eventually but for now it's a notation converter</p>
+			<p><i>Warning: amplification, overwrites, inverses, and arrays are not supported.</i></p>
+			<canvas id="canvas"></canvas>
+			<div>
+				<input type="text" id="inputText" name="input"></input>
+				<button onclick="convert()">Convert</button>
+				<button onclick="convertAndDownload()">Convert + Download</button>
+			</div>
+			<p id="status"></p>
+		</div>
+	</body>
+</html>
