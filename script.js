@@ -100,7 +100,8 @@ class CompoundCircle {
 	
 	mainRadius() {
 		// Radius of the circle itself
-		return this.coreSize() + this.maxSubSize() + 0.5;
+		// return Math.max(this.coreSize() + 2*this.maxSubSize() + 0.5);
+		return Math.max(this.maxSubSize() + this.coreSize() + 0.5, (this.maxSubSize()+0.25) / Math.sin(Math.PI/this.size));
 	}
 	
 	get radius() {
@@ -166,62 +167,118 @@ class CompoundCircle {
 	}
 }
 
-// TODO: This must be updated to include - and = when arrays are implemented!
-const TOKEN = /[()/!]|\d+|\w+|\++/g;
-
-function parseShorthand(string) {
-	let tokenized = string.matchAll(TOKEN);
-	var stack = [new CompoundCircle([], null)];
-	var multipliers = [1];
-	var nextMult = 1;
-	for (token of tokenized) {
-		token = token[0];
-		// console.log(token);
-		// now for the last great else-if chain
-		// TODO: Error-checking for empty stack? (or not)
-		if (token === "(") {
-			// Add a new circle to stack
-			let next = new CompoundCircle([], null);
-			stack.push(next);
-			multipliers.push(nextMult);
-			nextMult = 1;
-		} else if (token === ")") {
-			// End current circle, add to parent
-			let current = stack.pop();
-			let multiplier = multipliers.pop();
-			for (let i = 0; i<multiplier; i++) {
-				let next = current.copy();
-				stack.at(-1).subcircles.push(next);
-			}
-		} else if (token === "/") {
-			// Meaningless connector character, do nothing
-		} else if (token === "!") {
-			// The circle we just added was an overlay.
-			let current = stack.at(-1).subcircles.pop();
-			stack.at(-1).overlay = current;
-		} else if (token === "+") {
-			// TODO: Handle amplification
-		} else if (token === "++") {
-			// TODO: Handle amplification
-		} else if (/\d+/.test(token)) {
-			// This is a number. The next circle created gets multiplied by it
-			nextMult = parseInt(token);
-		} else {
-			// Attempt to parse it as an element. If that fails, give up.
-			let e = SYMBOLS.get(token.toLowerCase());
-			if (e !== undefined) {
-				for (let i = 0; i<nextMult; i++) {
-					let next = new ElementCircle(e);
-					stack.at(-1).subcircles.push(next);
+function canRemove(string) {
+	if (string[0] !== "(" || string[string.length-1] !== ")") {
+		return false;
+	}
+	let current = 0;
+	for (let i = 1; i<string.length-1; i++) {
+		if (string[i] === "(") {
+			current++;
+		}
+		else {
+			if (string[i] === ")") {
+				current--;
+				if (current < 0) {
+					return false;
 				}
-				nextMult = 1;
 			}
 		}
-		// console.log(stack);
-		// console.log(multipliers);
-		// console.log(nextMult);
 	}
-	return stack.pop();
+	return true;
+}
+
+function removeParens(string) {
+	while(canRemove(string)) {
+		string = string.substring(1, string.length-1);
+	}
+	return string;
+}
+
+function searchOutsideParens(string, target) {
+	let current = 0;
+	let results = [];
+	for (let i = 0; i<string.length; i++) {
+		let x = string[i];
+		if (x === "(") {
+			current++;
+		}
+		else if (x === ")") {
+			current--;
+		}
+		else if (current === 0 && x === target) {
+			results.push(i);
+		}
+	}
+	return results;
+}
+
+function splitByIndex(string, indices) {
+	if (indices.length === 0) {
+		return [string];
+	}
+	let last = -1;
+	let result = [];
+	for (const i of indices) {
+		result.push(string.substring(last+1, i));
+		last = i;
+	}
+	result.push(string.substring(last+1));
+	return result;
+}
+
+function parseShorthand(string) {
+	// Remove all parens
+	string = removeParens(string);
+	
+	// If string is now pure alphabetical, try to lookup as element.
+	if (/^[a-zA-Z]+$/.test(string)) {
+		let e = SYMBOLS.get(string.toLowerCase());
+		return new ElementCircle(e);
+	}
+	
+	// Split on overlay symbol, if it exists, and recurse
+	let bangs = searchOutsideParens(string, "!");
+	if (bangs.length > 0) {
+		let last = bangs.at(-1);
+		let left = parseShorthand(string.substring(0, last));
+		let right = parseShorthand(string.substring(last+1));
+		right.overlay = left;
+		return right;
+	}
+	
+	// Split on slashes
+	let parts = splitByIndex(string, searchOutsideParens(string, "/"));
+	
+	// Extract numbers.
+	let numbers = Array(parts.length);
+	for (let i = 0; i<parts.length; i++) {
+		let matched = parts[i].match(/^(\d+)(.+)$/);
+		if (matched) {
+			numbers[i] = parseInt(matched[1]);
+			parts[i] = matched[2];
+		}
+		else {
+			numbers[i] = 1;
+		}
+	}
+	
+	// Evaluate circles, multiply by numbers, and return.
+	let subcircles = [];
+	for (let i = 0; i<parts.length; i++) {
+		let subcircle = parseShorthand(parts[i]);
+		if (numbers[i] === 1) {
+			subcircles.push(subcircle);
+		}
+		else {
+			for (let j = 0; j<numbers[i]; j++) {
+				subcircles.push(subcircle.copy());
+			}
+		}
+	}
+	
+	result = new CompoundCircle(subcircles, null);
+	return result;
 }
 
 window.onload = function() {
@@ -290,7 +347,7 @@ window.onload = function() {
 	// Below functions are specific to the "tech demo" and may be changed in the full version
 	
 	convert = function() {
-		let inputText = document.getElementById("inputText").value;
+		let inputText = document.getElementById("inputText").value.replaceAll(" ", "");
 		try {
 			showCircle(parseShorthand(inputText));
 			showStatus("Parsed " + inputText);
@@ -302,7 +359,7 @@ window.onload = function() {
 	}
 	
 	convertAndDownload = function() {
-		let inputText = document.getElementById("inputText").value;
+		let inputText = document.getElementById("inputText").value.replaceAll(" ", "");
 		try {
 			showCircle(parseShorthand(inputText));
 			download(inputText);
