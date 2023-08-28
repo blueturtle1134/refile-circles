@@ -1,9 +1,13 @@
+// Adjustable constants
+LINE_WIDTH = 5;
+COND_WIDTH = 200;
+
 /*
 One unit of element radius. This is a property of the actual image files, which are 1550x1550 right now.
 This leads to really big numbers in render-space, but it's all getting scaled anyway so who cares.
 All this feels very stupid and I'm not convinced that there isn't a better way
 */
-const R = 1550;
+const R = 1550/2;
 
 // Define class for elements
 class Element { // Not the kind you're thinking of, Javascript
@@ -47,17 +51,34 @@ for (e of ELEMENTS) {
 	SYMBOLS.set(e.abbr.toLowerCase(), e);
 }
 
+// Helper method for polar coordinates
+function polar(r, theta) {
+	let result = new paper.Point(r * Math.sin(theta), -r * Math.cos(theta));
+	return result;
+}
+
 // Define classes for the circle types
 class ElementCircle {
 	constructor(e) {
 		this.e = e;
+		this.elem = true;
 	}
+	
+	// All radii of an elementary circle are 1 (we use elementary circles as the unit of radius)
 	
 	get radius() {
-		return 1; // Elementary circle has radius 1
+		return 1;
 	}
 	
-	draw() {
+	mainRadius() {
+		return 1;
+	}
+	
+	circleRadius() {
+		return 1;
+	}
+	
+	draw(offsetAngle, isOverlay) {
 		let raster = new paper.Raster(this.e.name);
 		return raster;
 	}
@@ -68,17 +89,19 @@ class ElementCircle {
 }
 
 class CompoundCircle {	
-	constructor(subcircles, overlay) {
+	constructor(subcircles, overlay, amp=1) {
 		this.subcircles = subcircles;
 		this.overlay = overlay;
+		this.amp = amp;
+		this.elem = false;
 	}
 	
 	get size() {
 		return this.subcircles.length;
 	}
 	
-	maxSubSize() {
-		// Maximum size of a subcircle
+	maxSubRadius() {
+		// Maximum radius of a subcircle
 		let result = 1; // By default, assume empty slots are elementals
 		for (const sub of this.subcircles) {
 			if (sub !== null) {
@@ -88,69 +111,130 @@ class CompoundCircle {
 		return result;
 	}
 	
-	coreSize() {
-		// Size of the overlay/override
-		if (this.overlay !== null) {
-			return this.overlay.radius;
+	maxSubRadiusCircle() {
+		// Maximum circle radius of a subcircle, mostly used for overlays
+		let result = 0;
+		for (const sub of this.subcircles) {
+			if (sub !== null) {
+				result = Math.max(result, sub.circleRadius());
+			}
 		}
-		else {
-			return 1; // Leave space for an elemental
-		}
+		return result;
 	}
 	
 	mainRadius() {
-		// Radius of the circle itself
-		// return Math.max(this.coreSize() + 2*this.maxSubSize() + 0.5);
-		return Math.max(this.maxSubSize() + this.coreSize() + 0.5, (this.maxSubSize()+0.25) / Math.sin(Math.PI/this.size));
+		// Radius at which the component circles are placed
+		
+		// Firstly, the subcircles can't intersect, and ideally shouldn't be close to intersecting
+		let result = (this.maxSubRadius()+1) / Math.sin(Math.PI/this.size);
+		
+		// If there is an override or overlay, there has to be space for it
+		if (this.overlay !== null) {
+			if (this.overlay.elem) {
+				// Override: leave some space between it and the subcircles
+				result = Math.max(result, 2 + this.maxSubRadius());
+			}
+			else {
+				// Override: circles of subcircles must exactly touch it, ignore everything else
+				result = this.overlay.radius;
+			}
+		}
+		
+		return result;
+	}
+	
+	circleRadius() {
+		// Radius of the circle container, equal to mainRadius plus amplification
+		return this.mainRadius() * this.amp;
 	}
 	
 	get radius() {
-		return this.mainRadius() + this.maxSubSize();
+		// Radius of the full circle
+		return Math.max(this.mainRadius() + this.maxSubRadius(), this.circleRadius());
 	}
 	
-	draw() {
-		let cRadius = 0.5*this.mainRadius()*R;
-		
-		let circleBB = new paper.Rectangle(new paper.Point(-cRadius, -cRadius), new paper.Point(cRadius, cRadius));
+	draw(offsetAngle, isOverlay) {
+		// Draw the actual circle
+		let circleR = this.circleRadius()*R;
+		let circleBB = new paper.Rectangle(new paper.Point(-circleR, -circleR), new paper.Point(circleR, circleR));
 		let circle = new paper.Path.Ellipse(circleBB);
-		circle.fillColor = "white";
-		
-		let points = [];
-		for (let i = 0; i<this.size; i++) {
-			let angle = 2 * Math.PI * i / this.size;
-			points.push(new paper.Point(cRadius * Math.sin(angle), -cRadius * Math.cos(angle)));
+		if (!isOverlay) {
+			circle.fillColor = "white";
 		}
 		
-		// TODO: replaced by overwrite if one exists
-		// TODO: this method does NOT work for amplified circles!
-		let support = new paper.Path(points);
-		support.add(points[0]);
+		// Create the group
+		let group = new paper.Group([circle]);
 		
-		let group = new paper.Group([circle, support]);
+		// Locate the component circles
+		let mainR = this.mainRadius()*R;
+		let points = [];
+		let subAngle = 2 * Math.PI / this.size;
+		for (let i = 0; i<this.size; i++) {
+			points.push(polar(mainR, i * subAngle + offsetAngle));
+		}
 		
+		// Locate the center
+		let center = new paper.Point(0,0);
+		
+		// Draw the connecting lines
+		let phi = Math.acos(Math.cos(subAngle/2) / this.amp); // This is the half-angle of each of the connector lines
+		for (let i = 0; i<this.size; i++) {
+			group.addChild(new paper.Path([
+				polar(circleR, (i + 0.5) * subAngle + offsetAngle - phi),
+				polar(circleR, (i + 0.5) * subAngle + offsetAngle + phi)
+			]));
+		}
+		
+		// Draw the override, if one exists
 		if (this.overlay !== null) {
-			let center = new paper.Point(0,0);
 			
-			for (let i = 0; i<this.size; i++) {
-				group.addChild(new paper.Path([center, points[i]]));
+			// If it's an override, draw the connecting lines
+			if (this.overlay.elem) {
+				for (let i = 0; i<this.size; i++) {
+					group.addChild(new paper.Path([center, points[i]]));
+				}
 			}
 			
-			let overlayImage = this.overlay.draw();
+			// Draw the overlaying circle
+			let overlayImage = this.overlay.draw(offsetAngle+Math.PI/this.size, true);
+			
+			/*
+			// If it's an overlay, make it transparent (so this circle's connectors can be seen)
+			if (!this.overlay.elem) {
+				overlayImage.firstChild.fillColor = null;
+			}
+			*/
+			
+			// Position and add to group
 			overlayImage.position = center;
 			group.addChild(overlayImage);
 		}
+		let isOverlaid = (this.overlay !== null) && (!this.overlay.elem);
 		
+		// Draw the component circles
 		// TODO: a dash for null circles
 		for (let i = 0; i<this.size; i++){
 			let sub = this.subcircles[i];
 			let point = points[i];
-			let subImage = sub.draw();
+			let subImage = sub.draw(offsetAngle, false);
+			if (isOverlaid) {
+				// If this circle has an overlay: all subcircles must be scaled to match the radius of the overlay's subcircles
+				let targetRadius = this.overlay.maxSubRadiusCircle();
+				subImage.scale(targetRadius / sub.circleRadius());
+			}
+			else if (isOverlay) {
+				// If this circle is an overlay: all subcircles must be scaled to match the radius of its own largest subcircle
+				let targetRadius = this.maxSubRadiusCircle();
+				subImage.scale(targetRadius / sub.circleRadius());
+			}
 			subImage.position = point;
 			group.addChild(subImage);
 		}
 		
+		// Add color, return group
 		group.strokeColor = "black";
-		group.strokeWidth = R*0.002;
+		group.strokeWidth = LINE_WIDTH;
+		group.pivot = center;
 		return group;
 	}
 	
@@ -163,7 +247,97 @@ class CompoundCircle {
 		if (this.overlay !== null) {
 			overlay = this.overlay.copy();
 		}
-		return new CompoundCircle(subcircles, overlay);
+		return new CompoundCircle(subcircles, overlay, this.amp);
+	}
+}
+
+class CircleArray {	
+	constructor(subcircles, conduits) {
+		this.subcircles = subcircles;
+		this.conduits = conduits;
+		this.elem = false;
+	}
+	
+	get size() {
+		return this.subcircles.length;
+	}
+	
+	maxSubRadius() {
+		// Maximum radius of a subcircle
+		let result = 1; // By default, assume empty slots are elementals
+		for (const sub of this.subcircles) {
+			if (sub !== null) {
+				result = Math.max(result, sub.radius);
+			}
+		}
+		return result;
+	}
+	
+	mainRadius() {
+		// Radius at which the component circles are placed
+		
+		return (this.maxSubRadius()+1) / Math.sin(Math.PI/this.size);
+	}
+	
+	get radius() {
+		// Radius of the full circle
+		return this.mainRadius() + this.maxSubRadius();
+	}
+	
+	draw(offsetAngle, isOverlay) {
+		// Create the group
+		let group = new paper.Group([]);
+		
+		// Locate the component circles
+		let mainR = this.mainRadius()*R;
+		let points = [];
+		let subAngle = 2 * Math.PI / this.size;
+		for (let i = 0; i<this.size; i++) {
+			points.push(polar(mainR, i * subAngle + offsetAngle));
+		}
+		
+		// Locate the center
+		let center = new paper.Point(0,0);
+		
+		// Draw the connecting lines
+		for (let i = 0; i<this.size; i++) {
+			let line = new paper.Path([points.at(i-1), points.at(i)]);
+			if (this.conduits[i]) {
+				let shift = polar(COND_WIDTH/2, (i - 0.5) * subAngle + offsetAngle)
+				let line2 = line.clone();
+				line.translate(shift);
+				line2.translate(shift.multiply(-1));
+				group.addChild(line);
+				group.addChild(line2);
+			}
+			else {
+				group.addChild(line);
+			}
+		}
+		
+		// Draw the component circles
+		// TODO: a dash for null circles
+		for (let i = 0; i<this.size; i++){
+			let sub = this.subcircles[i];
+			let point = points[i];
+			let subImage = sub.draw(offsetAngle, false);
+			subImage.position = point;
+			group.addChild(subImage);
+		}
+		
+		// Add color, return group
+		group.strokeColor = "black";
+		group.strokeWidth = LINE_WIDTH;
+		group.pivot = center;
+		return group;
+	}
+	
+	copy() {
+		let subcircles = [];
+		for (const sub of this.subcircles) {
+			subcircles.push(sub.copy());
+		}
+		return new CircleArray(subcircles, Array.from(this.conduits));
 	}
 }
 
@@ -228,6 +402,7 @@ function splitByIndex(string, indices) {
 }
 
 function parseShorthand(string) {
+	// console.log(string);
 	// Remove all parens
 	string = removeParens(string);
 	
@@ -245,6 +420,20 @@ function parseShorthand(string) {
 		let right = parseShorthand(string.substring(last+1));
 		right.overlay = left;
 		return right;
+	}
+	
+	// If trailing is + or ++, record amp and recurse
+	if (string.endsWith("+")) {
+		if (string.endsWith("++")) {
+			let result = parseShorthand(string.substring(0, string.length-2));
+			result.amp = 3;
+			return result;
+		}
+		else {
+			let result = parseShorthand(string.substring(0, string.length-1));
+			result.amp = 2;
+			return result;
+		}
 	}
 	
 	// Split on slashes
@@ -281,61 +470,89 @@ function parseShorthand(string) {
 	return result;
 }
 
+function parseArray(string) {
+	// Attempt to correct some common omissions in array writing
+	if (string.endsWith("=")) {
+		string = "=" + string;
+	}
+	else if (string.endsWith("-")) {
+		string = "-" + string;
+	}
+	else if (string.includes("-") || string.includes("=")) {
+		string = "-" + string + "-";
+	}
+	
+	let parts = Array.from(string.matchAll(/([-=])([^-=]+)/g));
+	if (parts.length > 0) {
+		return new CircleArray(
+			parts.map(x => parseShorthand(x[2])),
+			parts.map(x => x[1] === "=")
+		)
+	}
+	else {
+		return parseShorthand(string);
+	}
+}
+
 window.onload = function() {
-	var canvas = document.getElementById("canvas");
+	// Connect to canvas
+	canvas = document.getElementById("canvas");
 	paper.setup(canvas);
 	
 	// If resize is set, the canvas size tags are ignored if element size is specified
 	// If resize is not set, the canvas size always matches the element size
 	// Setting the size programmatically, while odd, is my only means of actually doing supersampling
 	// It also leads to a flicker of incorrect size at the start, ugh
-	paper.view.viewSize = new paper.Size(1550, 1550);
+	let viewRadius = 4000;
+	paper.view.viewSize = new paper.Size(viewRadius, viewRadius);
 	canvas.style.height = "70vmin";
 	canvas.style.width = "70vmin";
 	
-	circle = new CompoundCircle([
-		new CompoundCircle([
-				new ElementCircle(ELEMENTS[7]),
-				new ElementCircle(ELEMENTS[10])
-			],
-			null
-		),
-		new ElementCircle(ELEMENTS[13]),
-		new CompoundCircle([
-				new ElementCircle(ELEMENTS[18]),
-				new ElementCircle(ELEMENTS[7])
-			],
-			null
-		)],
-		new ElementCircle(ELEMENTS[19])
-	);
+	// Create variables
+	circle = null;
+	render = null;
 	
+	// Make the background
 	let background = new paper.Path.Rectangle(paper.view.viewSize);
 	background.fillColor = "white";
-	var render = circle.draw();
-
-	rescale = function() {
-		// Resize the render to fit and place it in the center of the view
+	
+	// Function definitions
+	
+	redraw = function() {
+		// Clear render (if necessary)
+		if (render) {
+			render.remove();
+		}
+		
+		// Draw the circle
+		render = circle.draw(0, false);
+		
+		// let viewBounds = paper.view.bounds;
+		// let targetRadius = Math.min(viewBounds.width, viewBounds.height)/2;
+		// let renderRadius = circle.radius*R;
+		// console.log(targetRadius);
+		// console.log(renderRadius);
+		// render.scale(targetRadius/renderRadius);
+		
+		// Rescale and position render
 		let viewBounds = paper.view.bounds;
 		let rendBounds = render.bounds;
 		let factor = Math.min(viewBounds.width/rendBounds.width, viewBounds.height/rendBounds.height);
 		render.scale(factor);
-		render.position = paper.view.center;
+		render.translate(paper.view.center.subtract(render.bounds.center));
 		paper.view.draw();
 	}
 	
 	showCircle = function(c) {
 		circle = c;
-		render.remove();
-		render = c.draw();
-		rescale();
+		redraw();
 	}
-	
-	rescale();
 
 	paper.view.onResize = function(event) {
-		rescale();
+		redraw();
 	}
+	
+	// Below functions are specific to the "tech demo" and may be changed in the full version
 
 	download = function(filename){
 		var link = document.createElement('a');
@@ -344,12 +561,10 @@ window.onload = function() {
 		link.click();
 	}
 	
-	// Below functions are specific to the "tech demo" and may be changed in the full version
-	
 	convert = function() {
 		let inputText = document.getElementById("inputText").value.replaceAll(" ", "");
 		try {
-			showCircle(parseShorthand(inputText));
+			showCircle(parseArray(inputText));
 			showStatus("Parsed " + inputText);
 		}
 		catch (error) {
@@ -361,7 +576,7 @@ window.onload = function() {
 	convertAndDownload = function() {
 		let inputText = document.getElementById("inputText").value.replaceAll(" ", "");
 		try {
-			showCircle(parseShorthand(inputText));
+			showCircle(parseArray(inputText));
 			download(inputText);
 			showStatus("Parsed " + inputText + ", image downloaded.");
 		}
@@ -375,6 +590,8 @@ window.onload = function() {
 		document.getElementById("status").innerText = string;
 	}
 	
+	// Initial example
+	showCircle(parseArray("Ve/Pu/Bk++"));
 	showStatus("Converter ready.");
 }
 
