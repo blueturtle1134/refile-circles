@@ -567,29 +567,26 @@ window.onload = function() {
 		link.click();
 	}
 	
-	convert = function() {
+	convert = function(shouldDownload=false) {
 		let inputText = document.getElementById("inputText").value.replaceAll(" ", "");
 		try {
 			showCircle(parseArray(inputText));
-			showStatus("Parsed " + inputText);
+			if (shouldDownload) {
+				download(inputText);
+				showStatus("Parsed " + inputText + ", image downloaded.");
+			}
+			else {
+				showStatus("Parsed " + inputText);
+			}
 		}
 		catch (error) {
 			console.error(error);
-			showStatus("Error.");
+			showStatus("Error. Check spelling and parenthesis carefully. ");
 		}
 	}
 	
 	convertAndDownload = function() {
-		let inputText = document.getElementById("inputText").value.replaceAll(" ", "");
-		try {
-			showCircle(parseArray(inputText));
-			download(inputText);
-			showStatus("Parsed " + inputText + ", image downloaded.");
-		}
-		catch (error) {
-			console.error(error);
-			showStatus("Error.");
-		}
+		convert(true);
 	}
 	
 	showStatus = function(string) {
