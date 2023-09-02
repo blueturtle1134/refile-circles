@@ -135,8 +135,14 @@ class CompoundCircle {
 				result = Math.max(result, 2 + this.maxSubRadius());
 			}
 			else {
-				// Override: circles of subcircles must exactly touch it, ignore everything else
-				result = this.overlay.radius;
+				if (this.overlay.size === this.size) {
+					// Homogenous overlay: circles of subcircles must exactly touch it
+					result = this.overlay.circleRadius() + this.overlay.maxSubRadiusCircle();
+				}
+				else {
+					// Heterogenous overlay: circle of overlay touches connectors of base
+					result = this.overlay.circleRadius() / Math.cos(Math.PI / this.size);
+				}
 			}
 		}
 		
@@ -196,7 +202,7 @@ class CompoundCircle {
 			}
 			
 			// Draw the overlaying circle
-			let overlayImage = this.overlay.draw(offsetAngle+Math.PI/this.size, true);
+			let overlayImage = this.overlay.draw(offsetAngle+Math.PI/this.overlay.size, true);
 			
 			/*
 			// If it's an overlay, make it transparent (so this circle's connectors can be seen)
