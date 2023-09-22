@@ -146,6 +146,11 @@ class CompoundCircle {
 			}
 		}
 		
+		// For a 6P circle, we need the inner elements to be amplified, so the outer elements are twice as far away
+		if (this.size === 6) {
+			return result*2;
+		}
+		
 		return result;
 	}
 	
@@ -176,19 +181,43 @@ class CompoundCircle {
 		let points = [];
 		let subAngle = 2 * Math.PI / this.size;
 		for (let i = 0; i<this.size; i++) {
-			points.push(polar(mainR, i * subAngle + offsetAngle));
+			if (this.size === 6 && i%2 === 1) {
+				// For a 6P circle, the odd points are amplified
+				points.push(polar(mainR/2, i * subAngle + offsetAngle));
+			}
+			else {
+				points.push(polar(mainR, i * subAngle + offsetAngle));
+			}
 		}
 		
 		// Locate the center
 		let center = new paper.Point(0,0);
 		
 		// Draw the connecting lines
-		let phi = Math.acos(Math.cos(subAngle/2) / this.amp); // This is the half-angle of each of the connector lines
-		for (let i = 0; i<this.size; i++) {
-			group.addChild(new paper.Path([
-				polar(circleR, (i + 0.5) * subAngle + offsetAngle - phi),
-				polar(circleR, (i + 0.5) * subAngle + offsetAngle + phi)
-			]));
+		if (this.size === 6) {
+			// 6P has a special connector setup
+			
+			// Draw the three outer lines
+			let phi = Math.acos(0.5 / this.amp);
+			// Since the 6P shape is treated as unamplified, further amplifying is possible as normal, even though this doesn't actually make sense
+			for (let i = 0; i<3; i++) {
+				group.addChild(new paper.Path([
+					polar(circleR, (i + 0.5) * Math.PI*2/3 + offsetAngle - phi),
+					polar(circleR, (i + 0.5) * Math.PI*2/3 + offsetAngle + phi)
+				]));
+			}
+			
+			// Connect the inner points
+			group.addChild(new paper.Path([points[1], points[3], points[5], points[1]]));
+		}
+		else {
+			let phi = Math.acos(Math.cos(subAngle/2) / this.amp); // This is the half-angle of each of the connector lines
+			for (let i = 0; i<this.size; i++) {
+				group.addChild(new paper.Path([
+					polar(circleR, (i + 0.5) * subAngle + offsetAngle - phi),
+					polar(circleR, (i + 0.5) * subAngle + offsetAngle + phi)
+				]));
+			}
 		}
 		
 		// Draw the override, if one exists
@@ -197,19 +226,14 @@ class CompoundCircle {
 			// If it's an override, draw the connecting lines
 			if (this.overlay.elem) {
 				for (let i = 0; i<this.size; i++) {
-					group.addChild(new paper.Path([center, points[i]]));
+					if (!(this.size === 6 && i%2 === 1)) { // 6P only has half the override connectors
+						group.addChild(new paper.Path([center, points[i]]));
+					}
 				}
 			}
 			
 			// Draw the overlaying circle
 			let overlayImage = this.overlay.draw(offsetAngle+Math.PI/this.overlay.size, true);
-			
-			/*
-			// If it's an overlay, make it transparent (so this circle's connectors can be seen)
-			if (!this.overlay.elem) {
-				overlayImage.firstChild.fillColor = null;
-			}
-			*/
 			
 			// Position and add to group
 			overlayImage.position = center;
@@ -532,13 +556,6 @@ window.onload = function() {
 		
 		// Draw the circle
 		render = circle.draw(0, false);
-		
-		// let viewBounds = paper.view.bounds;
-		// let targetRadius = Math.min(viewBounds.width, viewBounds.height)/2;
-		// let renderRadius = circle.radius*R;
-		// console.log(targetRadius);
-		// console.log(renderRadius);
-		// render.scale(targetRadius/renderRadius);
 		
 		// Rescale and position render
 		let viewBounds = paper.view.bounds;
