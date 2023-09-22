@@ -126,15 +126,29 @@ class CompoundCircle {
 		// Radius at which the component circles are placed
 		
 		// Firstly, the subcircles can't intersect, and ideally shouldn't be close to intersecting
-		let result = (this.maxSubRadius()+1) / Math.sin(Math.PI/this.size);
+		let result;
+		if (this.size === 6) {
+			// If this is a 6P: calc as if 3P and double
+			result = 2 * (this.maxSubRadius()+1) / Math.sin(Math.PI/3);
+		}
+		else {
+			result = (this.maxSubRadius()+1) / Math.sin(Math.PI/this.size);
+		}
 		
 		// If there is an override or overlay, there has to be space for it
 		if (this.overlay !== null) {
 			if (this.overlay.elem) {
 				// Override: leave some space between it and the subcircles
-				result = Math.max(result, 2 + this.maxSubRadius());
+				if (this.size === 6) {
+					// If this is a 6P, it needs to not touch the inner circles
+					result = Math.max(result, 4 + 2*this.maxSubRadius());
+				}
+				else {
+					result = Math.max(result, 2 + this.maxSubRadius());
+				}
 			}
 			else {
+				// TODO: don't try to overlay a 6P just don't
 				if (this.overlay.size === this.size) {
 					// Homogenous overlay: circles of subcircles must exactly touch it
 					result = this.overlay.circleRadius() + this.overlay.maxSubRadiusCircle();
@@ -144,11 +158,6 @@ class CompoundCircle {
 					result = this.overlay.circleRadius() / Math.cos(Math.PI / this.size);
 				}
 			}
-		}
-		
-		// For a 6P circle, we need the inner elements to be amplified, so the outer elements are twice as far away
-		if (this.size === 6) {
-			return result*2;
 		}
 		
 		return result;
