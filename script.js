@@ -89,10 +89,11 @@ class ElementCircle {
 }
 
 class CompoundCircle {	
-	constructor(subcircles, overlay, amp=1) {
+	constructor(subcircles, overlay, amp=1, inverse=false) {
 		this.subcircles = subcircles;
 		this.overlay = overlay;
 		this.amp = amp;
+		this.inverse = inverse;
 		this.elem = false;
 	}
 	
@@ -202,38 +203,48 @@ class CompoundCircle {
 		// Locate the center
 		let center = new paper.Point(0,0);
 		
-		// Draw the connecting lines
-		if (this.size === 6) {
-			// 6P has a special connector setup
-			
-			// Draw the three outer lines
-			let phi = Math.acos(0.5 / this.amp);
-			// Since the 6P shape is treated as unamplified, further amplifying is possible as normal, even though this doesn't actually make sense
-			for (let i = 0; i<3; i++) {
-				group.addChild(new paper.Path([
-					polar(circleR, (i + 0.5) * Math.PI*2/3 + offsetAngle - phi),
-					polar(circleR, (i + 0.5) * Math.PI*2/3 + offsetAngle + phi)
-				]));
+		if (this.inverse) {
+			// Draw the inverse aspect, rather than the connectors
+			switch (this.size) {
+				case 3:
+					
+					break;
 			}
-			
-			// Connect the inner points
-			group.addChild(new paper.Path([points[1], points[3], points[5], points[1]]));
 		}
 		else {
-			let phi = Math.acos(Math.cos(subAngle/2) / this.amp); // This is the half-angle of each of the connector lines
-			for (let i = 0; i<this.size; i++) {
-				group.addChild(new paper.Path([
-					polar(circleR, (i + 0.5) * subAngle + offsetAngle - phi),
-					polar(circleR, (i + 0.5) * subAngle + offsetAngle + phi)
-				]));
+			// Draw the connecting lines
+			if (this.size === 6) {
+				// 6P has a special connector setup
+				
+				// Draw the three outer lines
+				let phi = Math.acos(0.5 / this.amp);
+				// Since the 6P shape is treated as unamplified, further amplifying is possible as normal, even though this doesn't actually make sense
+				for (let i = 0; i<3; i++) {
+					group.addChild(new paper.Path([
+						polar(circleR, (i + 0.5) * Math.PI*2/3 + offsetAngle - phi),
+						polar(circleR, (i + 0.5) * Math.PI*2/3 + offsetAngle + phi)
+					]));
+				}
+				
+				// Connect the inner points
+				group.addChild(new paper.Path([points[1], points[3], points[5], points[1]]));
+			}
+			else {
+				let phi = Math.acos(Math.cos(subAngle/2) / this.amp); // This is the half-angle of each of the connector lines
+				for (let i = 0; i<this.size; i++) {
+					group.addChild(new paper.Path([
+						polar(circleR, (i + 0.5) * subAngle + offsetAngle - phi),
+						polar(circleR, (i + 0.5) * subAngle + offsetAngle + phi)
+					]));
+				}
 			}
 		}
 		
 		// Draw the override, if one exists
 		if (this.overlay !== null) {
 			
-			// If it's an override, draw the connecting lines
-			if (this.overlay.elem) {
+			// If it's an override and an inverse, draw the connecting lines
+			if (this.overlay.elem && !this.inverse) {
 				for (let i = 0; i<this.size; i++) {
 					if (!(this.size === 6 && i%2 === 1)) { // 6P only has half the override connectors
 						group.addChild(new paper.Path([center, points[i]]));
@@ -441,7 +452,6 @@ function splitByIndex(string, indices) {
 }
 
 function parseShorthand(string) {
-	// console.log(string);
 	// Remove all parens
 	string = removeParens(string);
 	
@@ -449,6 +459,17 @@ function parseShorthand(string) {
 	if (/^[a-zA-Z]+$/.test(string)) {
 		let e = SYMBOLS.get(string.toLowerCase());
 		return new ElementCircle(e);
+	}
+	
+	// Split on inverse symbol, if it exists, and recurse
+	let debangs = searchOutsideParens(string, "\u00A1");
+	if (debangs.length > 0) {
+		let last = debangs.at(-1);
+		let left = parseShorthand(string.substring(0, last));
+		let right = parseShorthand(string.substring(last+1));
+		right.overlay = left;
+		right.inverse = true;
+		return right;
 	}
 	
 	// Split on overlay symbol, if it exists, and recurse
