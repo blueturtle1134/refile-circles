@@ -61,7 +61,6 @@ function polar(r, theta) {
 class ElementCircle {
 	constructor(e) {
 		this.e = e;
-		this.elem = true;
 	}
 	
 	// All radii of an elementary circle are 1 (we use elementary circles as the unit of radius)
@@ -94,7 +93,6 @@ class CompoundCircle {
 		this.overlay = overlay;
 		this.amp = amp;
 		this.inverse = inverse;
-		this.elem = false;
 	}
 	
 	get size() {
@@ -138,7 +136,7 @@ class CompoundCircle {
 		
 		// If there is an override or overlay, there has to be space for it
 		if (this.overlay !== null) {
-			if (this.overlay.elem) {
+			if (this.overlay instanceof ElementCircle) {
 				// Override: leave some space between it and the subcircles
 				if (this.size === 6) {
 					// If this is a 6P, it needs to not touch the inner circles
@@ -246,7 +244,7 @@ class CompoundCircle {
 		if (this.overlay !== null) {
 			
 			// If it's an override and an inverse, draw the connecting lines
-			if (this.overlay.elem && !this.inverse) {
+			if ((this.overlay instanceof ElementCircle) && !this.inverse) {
 				for (let i = 0; i<this.size; i++) {
 					if (!(this.size === 6 && i%2 === 1)) { // 6P only has half the override connectors
 						group.addChild(new paper.Path([center, points[i]]));
@@ -261,7 +259,7 @@ class CompoundCircle {
 			overlayImage.position = center;
 			group.addChild(overlayImage);
 		}
-		let isOverlaid = (this.overlay !== null) && (!this.overlay.elem);
+		let isOverlaid = (this.overlay !== null) && (!(this.overlay instanceof ElementCircle));
 		
 		// Draw the component circles
 		// TODO: a dash for null circles
@@ -307,7 +305,6 @@ class CircleArray {
 	constructor(subcircles, conduits) {
 		this.subcircles = subcircles;
 		this.conduits = conduits;
-		this.elem = false;
 	}
 	
 	get size() {
