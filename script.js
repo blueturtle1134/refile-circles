@@ -207,7 +207,9 @@ class CompoundCircle {
 			// Draw the inverse aspect, rather than the connectors
 			switch (this.size) {
 				case 3:
-					
+					for (let i = 0; i<3; i++) {
+						group.addChild(new paper.Path([center, points[i]]));
+					}
 					break;
 			}
 		}
