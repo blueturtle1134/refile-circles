@@ -552,3 +552,41 @@ function parseArray(string) {
 		return parseShorthand(string);
 	}
 }
+
+function fullCost(circle, caster=null) {
+	if (circle instanceof CircleArray) {
+		let result = 0;
+		for (c of circle.subcircles) {
+			result += fullCost(c, caster);
+		}
+		return result;
+	}
+	else {
+		return Math.min(1, Math.floor(cost(c, caster)));
+	}
+}
+
+function cost(circle, caster=null, discounted=false, multiplier=1) {
+	if (circle instanceof ElementCircle) {
+		return circle.e.cost*multiplier;
+	}
+	else { // It must be a compound circle
+		let result = 0;
+		multiplier *= circle.amp;
+		if (circle.overlay != null) {
+			if (circle.overlay instanceof ElementCircle) {
+				result += cost(circle.overlay, caster, discounted, multiplier*4);
+			}
+			else if (circle.overlay instanceof CompoundCircle) {
+				result += cost(circle.overlay, caster, discounted, multiplier*2)
+			}
+			else { // It is a numerical value representing an overwrite
+				multiplier *= Math.floor(circle.overlay/2);
+			}
+		}
+		for (c of circle.subcircles) {
+			result += cost(c, caster, discounted, multiplier);
+		}
+		return result;
+	}
+}
