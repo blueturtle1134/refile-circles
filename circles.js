@@ -562,7 +562,7 @@ function fullCost(circle, caster=null) {
 		return result;
 	}
 	else {
-		return Math.min(1, Math.floor(cost(c, caster)));
+		return Math.max(1, Math.floor(cost(circle, caster)));
 	}
 }
 

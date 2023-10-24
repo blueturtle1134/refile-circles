@@ -62,6 +62,7 @@ window.onload = function() {
 		let inputText = document.getElementById("inputText").value.replaceAll(" ", "");
 		try {
 			showCircle(parseArray(inputText));
+			showCost();
 			if (shouldDownload) {
 				download(inputText);
 				showStatus("Parsed " + inputText + ", image downloaded.");
@@ -74,6 +75,10 @@ window.onload = function() {
 			console.error(error);
 			showStatus("Error. Check spelling and parenthesis carefully. ");
 		}
+	}
+	
+	showCost = function() {
+		document.getElementById("info").innerText = "Cost: " + fullCost(circle) + "E";
 	}
 	
 	convertAndDownload = function() {
