@@ -51,6 +51,10 @@ for (e of ELEMENTS) {
 	SYMBOLS.set(e.abbr.toLowerCase(), e);
 }
 
+for (let i = 0; i<ELEMENTS.length; i++) {
+	ELEMENTS[i].i = i;
+}
+
 // Helper method for polar coordinates
 function polar(r, theta) {
 	let result = new paper.Point(r * Math.sin(theta), -r * Math.cos(theta));
@@ -87,7 +91,7 @@ class ElementCircle {
 	}
 }
 
-class CompoundCircle {	
+class CompoundCircle {
 	constructor(subcircles, overlay, amp=1, inverse=false) {
 		this.subcircles = subcircles;
 		this.overlay = overlay;
@@ -301,7 +305,7 @@ class CompoundCircle {
 	}
 }
 
-class CircleArray {	
+class CircleArray {
 	constructor(subcircles, conduits) {
 		this.subcircles = subcircles;
 		this.conduits = conduits;
@@ -390,6 +394,7 @@ class CircleArray {
 	}
 }
 
+// Functions for notation parsing
 function canRemove(string) {
 	if (string[0] !== "(" || string[string.length-1] !== ")") {
 		return false;
@@ -553,6 +558,14 @@ function parseArray(string) {
 	}
 }
 
+// Cost calculation
+class CostProfile {
+	constructor (affinity, attunement) {
+		this.affinity = affinity;
+		this.attunement = attunement;
+	}
+}
+
 function fullCost(circle, caster=null) {
 	if (circle instanceof CircleArray) {
 		let result = 0;
@@ -568,13 +581,24 @@ function fullCost(circle, caster=null) {
 
 function cost(circle, caster=null, discounted=false, multiplier=1) {
 	if (circle instanceof ElementCircle) {
-		return circle.e.cost*multiplier;
+		if (!discounted && caster.affinity[circle.e.i]) {
+			discounted = true;
+		}
+		if (caster.attunement[circle.e.i]) {
+			return 1/(discounted+1);
+		}
+		else {
+			return circle.e.cost*multiplier/(discounted+1);
+		}
 	}
 	else { // It must be a compound circle
 		let result = 0;
 		multiplier *= circle.amp;
 		if (circle.overlay != null) {
 			if (circle.overlay instanceof ElementCircle) {
+				if (!discounted && caster.affinity[circle.overlay.e.i]) {
+					discounted = true;
+				}
 				result += cost(circle.overlay, caster, discounted, multiplier*4);
 			}
 			else if (circle.overlay instanceof CompoundCircle) {
