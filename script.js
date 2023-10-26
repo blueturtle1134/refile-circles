@@ -38,6 +38,9 @@ window.onload = function() {
 		render.scale(factor);
 		render.translate(paper.view.center.subtract(render.bounds.center));
 		paper.view.draw();
+		
+		// Update costs
+		showCost();
 	}
 	
 	showCircle = function(c) {
@@ -78,7 +81,8 @@ window.onload = function() {
 	}
 	
 	showCost = function() {
-		document.getElementById("info").innerText = "Cost: " + fullCost(circle) + "E";
+		document.getElementById("rawcost").innerText = fullCost(circle) + "E";
+		document.getElementById("cost").innerText = fullCost(circle) + "E";
 	}
 	
 	convertAndDownload = function() {
