@@ -566,7 +566,9 @@ class CostProfile {
 	}
 }
 
-function fullCost(circle, caster=null) {
+const EMPTY_PROFILE = new CostProfile(Array(ELEMENTS.length).fill(false), Array(ELEMENTS.length).fill(false));
+
+function fullCost(circle, caster=EMPTY_PROFILE) {
 	if (circle instanceof CircleArray) {
 		let result = 0;
 		for (c of circle.subcircles) {
@@ -579,7 +581,27 @@ function fullCost(circle, caster=null) {
 	}
 }
 
-function cost(circle, caster=null, discounted=false, multiplier=1) {
+/** Checks if a CompoundCircle fits the "all but one" affinity discount condition. */
+function allButOne(circle, caster) {
+	let counts = Array(ELEMENTS.length).fill(0);
+	for (subcircle of circle.subcircles) {
+		if (subcircle instanceof ElementCircle) {
+			counts[subcircle.e.i]++;
+		}
+		else {
+			// I *believe* a single non-elementary shuts off this condition
+			return false;
+		}
+	}
+	for (let i = 0; i<counts.length; i++) {
+		if (counts[i] == circle.subcircles.length-1 && caster.affinity[i]) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function cost(circle, caster=EMPTY_PROFILE, discounted=false, multiplier=1) {
 	if (circle instanceof ElementCircle) {
 		if (!discounted && caster.affinity[circle.e.i]) {
 			discounted = true;
@@ -607,6 +629,9 @@ function cost(circle, caster=null, discounted=false, multiplier=1) {
 			else { // It is a numerical value representing an overwrite
 				multiplier *= Math.floor(circle.overlay/2);
 			}
+		}
+		if (!discounted && allButOne(circle, caster)) {
+			discounted = true;
 		}
 		for (c of circle.subcircles) {
 			result += cost(c, caster, discounted, multiplier);
