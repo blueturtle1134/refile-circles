@@ -15,6 +15,7 @@ window.onload = function() {
 	// Create variables
 	circle = null;
 	render = null;
+	profile = EMPTY_PROFILE;
 	
 	// Make the background
 	let background = new paper.Path.Rectangle(paper.view.viewSize);
@@ -76,13 +77,13 @@ window.onload = function() {
 		}
 		catch (error) {
 			console.error(error);
-			showStatus("Error. Check spelling and parenthesis carefully. ");
+			showStatus("Error. Check spelling and parenthesis carefully.");
 		}
 	}
 	
 	showCost = function() {
 		document.getElementById("rawcost").innerText = fullCost(circle) + "E";
-		document.getElementById("cost").innerText = fullCost(circle) + "E";
+		document.getElementById("cost").innerText = fullCost(circle, profile) + "E";
 	}
 	
 	convertAndDownload = function() {
@@ -91,6 +92,48 @@ window.onload = function() {
 	
 	showStatus = function(string) {
 		document.getElementById("status").innerText = string;
+	}
+	
+	colorListToBooleanArray = function(string) {
+		let result = Array(ELEMENTS.length).fill(false);
+		if (string.length == 0) {
+			return result;
+		}
+		console.log(string);
+		let symbols = string.split(" ");
+		console.log(symbols);
+		for (symbol of symbols) {
+			result[SYMBOLS.get(symbol.toLowerCase()).i] = true;
+		}
+		return result;
+	}
+	
+	updateDiscounts = function() {
+		let affinities = colorListToBooleanArray(document.getElementById("affinitiesText").value);
+		let attunements = colorListToBooleanArray(document.getElementById("attunementsText").value);
+		profile = new CostProfile(affinities, attunements);
+		showCost();
+		showStatus("Updated costs.")
+	}
+	
+	// Function for when you select a preset
+	setDiscountFields = function(affinityField, attunementField) {
+		document.getElementById("affinitiesText").value = affinityField;
+		document.getElementById("attunementsText").value = attunementField;
+	}
+	
+	// Place preset options
+	const presetDropdown = document.getElementById("profilePresets");
+	for (let i = 0; i < PRESETS.length; i++) {
+		let thisGroup = document.createElement("optgroup");
+		thisGroup.setAttribute("label", PRESETS[i][0]);
+		for (let j = 0; j < PRESETS[i][1].length; j++) {
+			let thisOption = document.createElement("option");
+			thisOption.appendChild(document.createTextNode(PRESETS[i][1][j][0]));
+			thisOption.setAttribute("onclick", "setDiscountFields(\'" + PRESETS[i][1][j][1] + "\', \'" + PRESETS[i][1][j][2] + "\');");
+			thisGroup.appendChild(thisOption);
+		}
+		presetDropdown.appendChild(thisGroup);
 	}
 	
 	// Initial example

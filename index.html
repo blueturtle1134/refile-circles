@@ -41,13 +41,30 @@
 			<p><b>Defile Circles Notation Parser</b> by blueturtle1134, source <a href="https://github.com/blueturtle1134/refile-circles">here</a></p>
 			<p><i>Warning: overwrites and inverses are not yet supported. Some overlays will look weird. The preview below is low quality due to aliasing; use Convert + Download for a higher resolution version</i></p>
 			<canvas id="canvas"></canvas>
-			<p id="info">Cost: <span id="cost"></span> (<span id="rawcost"></span>)</p>
+			<p id="info">Cost: <span id="cost"></span> (<span id="rawcost"></span>) <button onclick="document.getElementById('cost-modal').style.display='block';">Set discounts</button></p>
 			<div>
 				<input type="text" id="inputText" name="input"></input>
 				<button onclick="convert()">Convert</button>
 				<button onclick="convertAndDownload()">Convert + Download</button>
 			</div>
 			<p id="status"></p>
+			<div id="cost-modal" class="modal-background" style="display: none;">
+				<div class="modal">
+					<p>(Enter color abbreviations as a space-separated list)</p>
+					<p>
+						Affinities: <input type="text" id="affinitiesText" name="affinities"></input>
+					</p>
+					<p>
+						Attunements: <input type="text" id="attunementsText" name="attunements"></input>
+					</p>
+					<p>
+						Presets: <select name="profilePresets" id="profilePresets"><option onclick="setDiscountFields('', '');">None</option></select>
+					</p>
+					<p>
+						<button onclick="document.getElementById('cost-modal').style.display='none'; updateDiscounts();">Save</button>
+					</p>
+				</div>
+			</div>
 		</div>
 	</body>
 </html>

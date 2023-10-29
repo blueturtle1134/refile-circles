@@ -639,3 +639,20 @@ function cost(circle, caster=EMPTY_PROFILE, discounted=false, multiplier=1) {
 		return result;
 	}
 }
+
+// Affinity and attunement information
+// this is honestly kind of scuffed, I feel like it should be objects
+PRESETS = [
+	["Player Characters",[
+		["Sariel", "In Sv", "In Sv"],
+		["Tamar", "Rd Sv Mc Bu", "Sv Rd"],
+		["Morgan", "Wh Bg Pk Gd", "Bg Pk"],
+		["cHarriett", "Yw Sk Pk Gy", "Gy Yw"],
+		["Ezra", "Gn Pk", ""],
+		["Clyde", "Tr Br", "Br"],
+		["Zoe", "In", ""],
+		["Alex", "Tr Sk Pu", "Sk"],
+		["Julian", "", ""],
+		["Peter", "", ""]
+	]]
+]

@@ -4,3 +4,24 @@
 	border: 1px solid black;
 	padding: 5px;
 }
+
+div.modal-background {
+	z-index: 3;
+	padding-top: 100px;
+	position: fixed;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	overflow: auto;
+	background-color: rgba(0,0,0,0.4);
+}
+
+div.modal {
+	margin: auto;
+	background-color: #fff;
+	position: relative;
+	padding: 5px;
+	border: 1px solid black;
+	width: fit-content;
+}
