@@ -89,6 +89,15 @@ class ElementCircle {
 	copy() {
 		return new ElementCircle(this.e);
 	}
+	
+	equals(that) {
+		if (that instanceof ElementCircle) {
+			return this.e == that.e;
+		}
+		else {
+			return false;
+		}
+	}
 }
 
 class CompoundCircle {
@@ -303,6 +312,15 @@ class CompoundCircle {
 		}
 		return new CompoundCircle(subcircles, overlay, this.amp);
 	}
+	
+	equals(that) {
+		if (that instanceof CompoundCircle) {
+			// TODO finish equalizer
+		}
+		else {
+			return false;
+		}
+	}
 }
 
 class CircleArray {
@@ -391,6 +409,15 @@ class CircleArray {
 			subcircles.push(sub.copy());
 		}
 		return new CircleArray(subcircles, Array.from(this.conduits));
+	}
+		
+	equals(that) {
+		if (that instanceof CompoundCircle) {
+			// TODO finish equalizer
+		}
+		else {
+			return false;
+		}
 	}
 }
 
