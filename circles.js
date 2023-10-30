@@ -61,6 +61,28 @@ function polar(r, theta) {
 	return result;
 }
 
+// Helper method that takes two arrays of objects implementing .equals and checks if they are equal
+function recursiveSubsetEq(set1, set2) {
+	if (set1.length != set2.length) {
+		return false;
+	}
+	let matched = Array(set1.length).fill(false);
+	for (let i = 0; i<set2.length; i++) {
+		let matchedThis = false;
+		for (let j = 0; j<set1.length; j++) {
+			if (!matched[j] && set1[j].equals(set2[i])) {
+				matchedThis = true;
+				matched[j] = true;
+				break;
+			}
+		}
+		if (!matchedThis) {
+			return false;
+		}
+	}
+	return matched.every(Boolean);
+}
+
 // Define classes for the circle types
 class ElementCircle {
 	constructor(e) {
