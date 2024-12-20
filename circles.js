@@ -55,6 +55,36 @@ for (let i = 0; i<ELEMENTS.length; i++) {
 	ELEMENTS[i].i = i;
 }
 
+// Heterogenous overlay hardcoded positions, given in terms of [outersize, innersize, angle, scale]
+const OVERLAY_LIST = [
+	[3, 2, Math.PI/2, 0]
+];
+
+// Convert the list to a stacked map
+var HETERO_OVERLAY = new Array(4);
+for (var i = 0; i < 4; i++) {
+	HETERO_OVERLAY[i] = new Array(4);
+}
+for ([outersize, innersize, angle, scale] of OVERLAY_LIST) {
+	HETERO_OVERLAY[outersize-2][innersize-2] = [angle, scale];
+}
+
+function getOverrideHardcode(outersize, innersize) {
+	if (outersize >= 2 || outersize <= 5 || innersize >= 2 || innersize <= 5) {
+		let res = HETERO_OVERLAY[outersize-2][innersize-2];
+		if (res != undefined) {
+			return res;
+		}
+		else {
+			return null;
+		}
+	}
+	else {
+		return null;
+	}
+}
+
+
 // Helper method for polar coordinates
 function polar(r, theta) {
 	let result = new paper.Point(r * Math.sin(theta), -r * Math.cos(theta));
@@ -182,15 +212,11 @@ class CompoundCircle {
 				}
 			}
 			else {
-				// TODO: don't try to overlay a 6P just don't
-				if (this.overlay.size === this.size) {
-					// Homogenous overlay: circles of subcircles must exactly touch it
-					result = this.overlay.circleRadius() + this.overlay.maxSubRadiusCircle();
-				}
-				else {
-					// Heterogenous overlay: circle of overlay touches connectors of base
-					result = this.overlay.circleRadius() / Math.cos(Math.PI / this.size);
-				}
+				// Overlay circles exactly touch main
+				result = this.overlay.circleRadius() + this.overlay.maxSubRadiusCircle();
+
+				// This is the old heterogenous overlay code - there may be combos where this is best
+				// result = this.overlay.circleRadius() / Math.cos(Math.PI / this.size);
 			}
 		}
 		
@@ -244,13 +270,12 @@ class CompoundCircle {
 						group.addChild(new paper.Path([center, points[i]]));
 					}
 					break;
+				// TODO: Support the rest of the inverses
 			}
 		}
 		else {
 			// Draw the connecting lines
-			if (this.size === 6) {
-				// 6P has a special connector setup
-				
+			if (this.size === 6) { // 6P has a special connector setup
 				// Draw the three outer lines
 				let phi = Math.acos(0.5 / this.amp);
 				// Since the 6P shape is treated as unamplified, further amplifying is possible as normal, even though this doesn't actually make sense
@@ -286,9 +311,16 @@ class CompoundCircle {
 					}
 				}
 			}
+
+			// Rotate override half a circle by default, check hardcode
+			let addedOffset = Math.PI/this.overlay.size;
+			let overrideHardcode = getOverrideHardcode(this.size, this.overlay.size);
+			if (overrideHardcode != null) {
+				addedOffset = overrideHardcode[0];
+			}
 			
 			// Draw the overlaying circle
-			let overlayImage = this.overlay.draw(offsetAngle+Math.PI/this.overlay.size, true);
+			let overlayImage = this.overlay.draw(offsetAngle+addedOffset, true);
 			
 			// Position and add to group
 			overlayImage.position = center;
