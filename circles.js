@@ -55,6 +55,42 @@ for (let i = 0; i<ELEMENTS.length; i++) {
 	ELEMENTS[i].i = i;
 }
 
+// Heterogenous overlay hardcoded positions, given in terms of [innersize, outersize, angle, scale]
+// Note that the order of inner/outer is OPPOSITE that used in getOverrideHardcode
+const OVERLAY_LIST = [
+	[2, 3, Math.PI/2, 1.5],
+	[2, 4, Math.PI/4, 1.0],
+	[2, 5, Math.PI/2, 2.6],
+	[3, 4, Math.PI/4, 3],
+	[3, 5, Math.PI/5, 3.5],
+	[4, 3, Math.PI/4, 2.2],
+	[4, 5, Math.PI/4, 3.8],
+	[5, 3, Math.PI/5, 2.3],
+	[5, 4, Math.PI/2, 1], // TODO this looks pretty unsalvageable; maybe use other notation?
+];
+
+// Convert the list to a stacked map
+var HETERO_OVERLAY = new Array(4);
+for (var i = 0; i < 4; i++) {
+	HETERO_OVERLAY[i] = new Array(4);
+}
+for ([innersize, outersize, angle, scale] of OVERLAY_LIST) {
+	HETERO_OVERLAY[outersize-2][innersize-2] = [angle, scale];
+}
+
+function getOverrideHardcode(outersize, innersize) {
+	if (outersize >= 2 || outersize <= 5 || innersize >= 2 || innersize <= 5) {
+		let res = HETERO_OVERLAY[outersize-2][innersize-2];
+		if (res != undefined) {
+			return res;
+		}
+	}
+	
+	// By default, use the original assumption of rotating to "fill the notch" and no size change
+	return [Math.PI/innersize, 1];
+}
+
+
 // Helper method for polar coordinates
 function polar(r, theta) {
 	let result = new paper.Point(r * Math.sin(theta), -r * Math.cos(theta));
@@ -103,13 +139,17 @@ class ElementCircle {
 		return 1;
 	}
 	
-	draw(offsetAngle, isOverlay) {
+	draw(offsetAngle) {
 		let raster = new paper.Raster(this.e.name);
 		return raster;
 	}
 	
 	copy() {
 		return new ElementCircle(this.e);
+	}
+
+	prepare() {
+		// Nothing has to be done for an elemental circle
 	}
 	
 	equals(that) {
@@ -128,10 +168,23 @@ class CompoundCircle {
 		this.overlay = overlay;
 		this.amp = amp;
 		this.inverse = inverse;
+		this.underlying = null;
 	}
 	
 	get size() {
 		return this.subcircles.length;
+	}
+
+	sizeMult () {
+		// This is 1 unless it's the inner circle in a heterogenous overlay,
+		// in which case it's the factor by which mainRadius should increase
+		// Even then, if this circle is amplified, no change is necessary
+		if (this.underlying !== null && this.amp == 1) {
+			return getOverrideHardcode(this.underlying.size, this.size)[1];
+		}
+		else {
+			return 1;
+		}
 	}
 	
 	maxSubRadius() {
@@ -182,19 +235,16 @@ class CompoundCircle {
 				}
 			}
 			else {
-				// TODO: don't try to overlay a 6P just don't
-				if (this.overlay.size === this.size) {
-					// Homogenous overlay: circles of subcircles must exactly touch it
-					result = this.overlay.circleRadius() + this.overlay.maxSubRadiusCircle();
-				}
-				else {
-					// Heterogenous overlay: circle of overlay touches connectors of base
-					result = this.overlay.circleRadius() / Math.cos(Math.PI / this.size);
-				}
+				// Overlay circles exactly touch main
+				result = this.overlay.circleRadius() + this.overlay.maxSubRadiusCircle();
+
+				// This is the old heterogenous overlay code - there may be combos where this is best
+				// result = this.overlay.circleRadius() / Math.cos(Math.PI / this.size);
 			}
 		}
 		
-		return result;
+		// Finally, if this is the inner circle in an overlay, it might be changed
+		return result*this.sizeMult();
 	}
 	
 	circleRadius() {
@@ -207,7 +257,20 @@ class CompoundCircle {
 		return Math.max(this.mainRadius() + this.maxSubRadius(), this.circleRadius());
 	}
 	
-	draw(offsetAngle, isOverlay) {
+	draw(offsetAngle) {
+		// Query and set heterogenous overlay hardcodes if necessary
+		if (this.overlay !== null) {
+			if (this.overlay.amp == 1) {
+				var addedOffset = getOverrideHardcode(this.size, this.overlay.size)[0];
+			}
+			else {
+				var addedOffset = Math.PI;
+			}
+		}
+
+		// Check if it's an overlay
+		let isOverlay = this.underlying !== null;
+
 		// Draw the actual circle
 		let circleR = this.circleRadius()*R;
 		let circleBB = new paper.Rectangle(new paper.Point(-circleR, -circleR), new paper.Point(circleR, circleR));
@@ -244,13 +307,12 @@ class CompoundCircle {
 						group.addChild(new paper.Path([center, points[i]]));
 					}
 					break;
+				// TODO: Support the rest of the inverses
 			}
 		}
 		else {
 			// Draw the connecting lines
-			if (this.size === 6) {
-				// 6P has a special connector setup
-				
+			if (this.size === 6) { // 6P has a special connector setup
 				// Draw the three outer lines
 				let phi = Math.acos(0.5 / this.amp);
 				// Since the 6P shape is treated as unamplified, further amplifying is possible as normal, even though this doesn't actually make sense
@@ -286,9 +348,8 @@ class CompoundCircle {
 					}
 				}
 			}
-			
-			// Draw the overlaying circle
-			let overlayImage = this.overlay.draw(offsetAngle+Math.PI/this.overlay.size, true);
+
+			let overlayImage = this.overlay.draw(offsetAngle+addedOffset, true);
 			
 			// Position and add to group
 			overlayImage.position = center;
@@ -334,6 +395,21 @@ class CompoundCircle {
 		}
 		return new CompoundCircle(subcircles, overlay, this.amp);
 	}
+
+	prepare() {
+		if (this.overlay !== null) {
+			this.overlay.prepare();
+			if (this.overlay instanceof CompoundCircle) {
+				this.overlay.underlying = this;
+			}
+		}
+		for (const sub of this.subcircles) {
+			sub.prepare();
+			if (sub instanceof CompoundCircle) {
+				sub.underlying = null;
+			}
+		}
+	}
 	
 	equals(that) {
 		if (that instanceof CompoundCircle) {
@@ -377,7 +453,7 @@ class CircleArray {
 		return this.mainRadius() + this.maxSubRadius();
 	}
 	
-	draw(offsetAngle, isOverlay) {
+	draw(offsetAngle) {
 		// Create the group
 		let group = new paper.Group([]);
 		
@@ -431,6 +507,15 @@ class CircleArray {
 			subcircles.push(sub.copy());
 		}
 		return new CircleArray(subcircles, Array.from(this.conduits));
+	}
+
+	prepare() {
+		for (const sub of this.subcircles) {
+			sub.prepare();
+			if (sub instanceof CompoundCircle) {
+				sub.underlying = null;
+			}
+		}
 	}
 		
 	equals(that) {

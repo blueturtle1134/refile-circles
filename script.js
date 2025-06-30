@@ -9,8 +9,8 @@ window.onload = function() {
 	// It also leads to a flicker of incorrect size at the start, ugh
 	let viewRadius = 4000;
 	paper.view.viewSize = new paper.Size(viewRadius, viewRadius);
-	canvas.style.height = "70vmin";
-	canvas.style.width = "70vmin";
+	canvas.style.height = "65vmin";
+	canvas.style.width = "65vmin";
 	
 	// Create variables
 	circle = null;
@@ -45,6 +45,7 @@ window.onload = function() {
 	}
 	
 	showCircle = function(c) {
+		c.prepare();
 		circle = c;
 		redraw();
 	}
