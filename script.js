@@ -45,6 +45,7 @@ window.onload = function() {
 	}
 	
 	showCircle = function(c) {
+		c.prepare();
 		circle = c;
 		redraw();
 	}
