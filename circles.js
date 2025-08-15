@@ -441,11 +441,21 @@ class CircleArray {
 		}
 		return result;
 	}
+
+	maxSubPairRadius() {
+		// Maximum averaged radius of two adjacent subcircles
+		// NOTE: I've begun assuming that there are no null elements in the subcircles array
+		// this is because in my current implementation, this should not happen
+		let result = this.subcircles[0].radius + this.subcircles[this.subcircles.length-1].radius;
+		for (let i = 0; i < this.subcircles.length-1; i++) {
+			result = Math.max(result, this.subcircles[i].radius + this.subcircles[i+1].radius)
+		}
+		return result/2;
+	}
 	
 	mainRadius() {
 		// Radius at which the component circles are placed
-		
-		return (this.maxSubRadius()+1) / Math.sin(Math.PI/this.size);
+		return (this.maxSubPairRadius()+1) / Math.sin(Math.PI/this.size);
 	}
 	
 	get radius() {
