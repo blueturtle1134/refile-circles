@@ -66,7 +66,7 @@ const OVERLAY_LIST = [
 	[4, 3, Math.PI/4, 2.2],
 	[4, 5, Math.PI/4, 3.8],
 	[5, 3, Math.PI/5, 2.3],
-	[5, 4, Math.PI/2, 1], // TODO this looks pretty unsalvageable; maybe use other notation?
+	[5, 4, Math.PI/20, 4], // TODO this looks pretty unsalvageable; maybe use other notation?
 ];
 
 // Convert the list to a stacked map
@@ -303,10 +303,18 @@ class CompoundCircle {
 			// Draw the inverse aspect, rather than the connectors
 			switch (this.size) {
 				case 3:
+					// Instability
 					for (let i = 0; i<3; i++) {
 						group.addChild(new paper.Path([center, points[i]]));
 					}
 					break;
+				case 4:
+					// Deformity
+					for (let i = 0; i<4; i++) {
+						group.addChild(new paper.Path([center, points[i]]));
+					}
+					group.addChild(new paper.Path([polar(R, offsetAngle), points[1]]));
+					group.addChild(new paper.Path([polar(R, Math.PI + offsetAngle), points[3]]));
 				// TODO: Support the rest of the inverses
 			}
 		}
@@ -340,7 +348,7 @@ class CompoundCircle {
 		// Draw the override, if one exists
 		if (this.overlay !== null) {
 			
-			// If it's an override and an inverse, draw the connecting lines
+			// If it's an override and not an inverse, draw the connecting lines
 			if ((this.overlay instanceof ElementCircle) && !this.inverse) {
 				for (let i = 0; i<this.size; i++) {
 					if (!(this.size === 6 && i%2 === 1)) { // 6P only has half the override connectors
@@ -608,6 +616,9 @@ function parseShorthand(string) {
 		let e = SYMBOLS.get(string.toLowerCase());
 		return new ElementCircle(e);
 	}
+
+	// Convert semicolon for inverse to inverted exclamation symbol
+	string = string.replace(";", "\u00A1")
 	
 	// Split on inverse symbol, if it exists, and recurse
 	let debangs = searchOutsideParens(string, "\u00A1");
