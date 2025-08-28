@@ -315,6 +315,11 @@ class CompoundCircle {
 					}
 					group.addChild(new paper.Path([polar(R, offsetAngle), points[1]]));
 					group.addChild(new paper.Path([polar(R, Math.PI + offsetAngle), points[3]]));
+				case 5:
+					// Rejection
+					for (let i = 0; i<5; i++) {
+						group.addChild(new paper.Path.Arc(center, polar(mainR/Math.sqrt(2), i * subAngle + offsetAngle - Math.PI/4), points[i]));
+					}
 				// TODO: Support the rest of the inverses
 			}
 		}
