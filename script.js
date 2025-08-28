@@ -139,7 +139,7 @@ window.onload = function() {
 	
 	// Initial example
 	// showCircle(parseArray("Ve/Pu/Bk++"));
-	showCircle(parseArray("Og;5Wh"));
+	showCircle(parseArray("Wh;Wh/Bk/Sk/Mc/Rb/Ve"));
 	showStatus("Converter ready.");
 }
 

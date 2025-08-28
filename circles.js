@@ -211,6 +211,11 @@ class CompoundCircle {
 	
 	mainRadius() {
 		// Radius at which the component circles are placed
+
+		// Stupid edge case: If this is Division, hardcode
+		if (this.inverse && this.size == 2) {
+			return 4;
+		}
 		
 		// Firstly, the subcircles can't intersect, and ideally shouldn't be close to intersecting
 		let result;
@@ -226,7 +231,7 @@ class CompoundCircle {
 		if (this.overlay !== null) {
 			if (this.overlay instanceof ElementCircle) {
 				// Override: leave some space between it and the subcircles
-				if (this.size === 6) {
+				if (this.size === 6 && !this.inverse) {
 					// If this is a 6P, it needs to not touch the inner circles
 					result = Math.max(result, 4 + 2*this.maxSubRadius());
 				}
@@ -302,7 +307,7 @@ class CompoundCircle {
 		let points = [];
 		let subAngle = 2 * Math.PI / this.size;
 		for (let i = 0; i<this.size; i++) {
-			if (this.size === 6 && i%2 === 1) {
+			if (this.size === 6 && !this.inverse && i%2 === 1) {
 				// For a 6P circle, the odd points are amplified
 				points.push(polar(mainR/2, i * subAngle + offsetAngle));
 			}
@@ -317,6 +322,26 @@ class CompoundCircle {
 		if (this.inverse) {
 			// Draw the inverse aspect, rather than the connectors
 			switch (this.size) {
+				case 2:
+					// Division
+					let triH = (mainR - 2*R) / Math.sqrt(3)
+					let triAng = Math.atan(triH / R);
+					let triRad = Math.sqrt(triH*triH + R*R);
+					let divisionTri1 = new paper.Path([
+						polar(mainR-R, offsetAngle),
+						polar(triRad, triAng + offsetAngle),
+						polar(triRad, -triAng + offsetAngle)
+					]);
+					divisionTri1.closed = true;
+					let divisionTri2 = new paper.Path([
+						polar(mainR-R, offsetAngle + Math.PI),
+						polar(triRad, triAng + offsetAngle + Math.PI),
+						polar(triRad, -triAng + offsetAngle + Math.PI)
+					]);
+					divisionTri2.closed = true;
+					group.addChild(divisionTri1);
+					group.addChild(divisionTri2);
+					break;
 				case 3:
 					// Instability
 					for (let i = 0; i<3; i++) {
@@ -337,6 +362,27 @@ class CompoundCircle {
 						group.addChild(new paper.Path.Arc(center, polar(mainR/Math.sqrt(2), i * subAngle + offsetAngle - Math.PI/4), points[i]));
 					}
 					break;
+				case 6:
+					// Analysis
+					let analysisPath1 = new paper.Path([
+						points[0],
+						polar(R*0.95, Math.PI/2 + offsetAngle),
+						points[3],
+						polar(R*0.95, -Math.PI/2 + offsetAngle)
+					]);
+					let analysisPath2 = new paper.Path([
+						points[1],
+						points[2],
+						polar(mainR*0.25, offsetAngle + Math.PI),
+						points[4],
+						points[5],
+						polar(mainR*0.25, offsetAngle)
+					]);
+					analysisPath1.closed = true;
+					analysisPath1.fillColor = "white";
+					analysisPath2.closed = true;
+					group.addChild(analysisPath2);
+					group.addChild(analysisPath1);
 				// TODO: Support the rest of the inverses
 			}
 		}
