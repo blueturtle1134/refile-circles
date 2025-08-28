@@ -259,12 +259,27 @@ class CompoundCircle {
 	
 	draw(offsetAngle) {
 		// Query and set heterogenous overlay hardcodes if necessary
+		// Also hardcode offset angles for certain inverses
 		if (this.overlay !== null) {
-			if (this.overlay.amp == 1) {
-				var addedOffset = getOverrideHardcode(this.size, this.overlay.size)[0];
+			if (this.inverse) {
+				switch (this.size) {
+					case 4:
+						// Rotate Deformity by 45 degrees
+						offsetAngle += Math.PI/4;
+						break;
+					case 6:
+						// Rotate Analysis by 90 degrees
+						offsetAngle += Math.PI/2
+						break;
+				}
 			}
 			else {
-				var addedOffset = Math.PI;
+				if (this.overlay.amp == 1) {
+					var addedOffset = getOverrideHardcode(this.size, this.overlay.size)[0];
+				}
+				else {
+					var addedOffset = Math.PI;
+				}
 			}
 		}
 
@@ -313,13 +328,15 @@ class CompoundCircle {
 					for (let i = 0; i<4; i++) {
 						group.addChild(new paper.Path([center, points[i]]));
 					}
-					group.addChild(new paper.Path([polar(R, offsetAngle), points[1]]));
-					group.addChild(new paper.Path([polar(R, Math.PI + offsetAngle), points[3]]));
+					group.addChild(new paper.Path([polar(R, Math.PI/2 + offsetAngle), points[0]]));
+					group.addChild(new paper.Path([polar(R, 3*Math.PI/2 + offsetAngle), points[2]]));
+					break;
 				case 5:
 					// Rejection
 					for (let i = 0; i<5; i++) {
 						group.addChild(new paper.Path.Arc(center, polar(mainR/Math.sqrt(2), i * subAngle + offsetAngle - Math.PI/4), points[i]));
 					}
+					break;
 				// TODO: Support the rest of the inverses
 			}
 		}
