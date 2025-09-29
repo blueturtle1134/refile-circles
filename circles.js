@@ -163,11 +163,12 @@ class ElementCircle {
 }
 
 class CompoundCircle {
-	constructor(subcircles, overlay, amp=1, inverse=false) {
+	constructor(subcircles, overlay, amp=1, inverse=false, overwrite=null) {
 		this.subcircles = subcircles;
 		this.overlay = overlay;
 		this.amp = amp;
 		this.inverse = inverse;
+		this.overwrite = overwrite;
 		this.underlying = null;
 	}
 	
@@ -247,6 +248,11 @@ class CompoundCircle {
 				// result = this.overlay.circleRadius() / Math.cos(Math.PI / this.size);
 			}
 		}
+
+		// If there is an overwrite, make space for it (currently same size as an elemental sigil)
+		if (this.overwrite !== null) {
+			result = Math.max(result, 2 + this.maxSubRadius());
+		}
 		
 		// Finally, if this is the inner circle in an overlay, it might be changed
 		return result*this.sizeMult();
@@ -290,11 +296,13 @@ class CompoundCircle {
 
 		// Check if it's an overlay
 		let isOverlay = this.underlying !== null;
+		
+		// Locate the center
+		let center = new paper.Point(0,0);
 
 		// Draw the actual circle
 		let circleR = this.circleRadius()*R;
-		let circleBB = new paper.Rectangle(new paper.Point(-circleR, -circleR), new paper.Point(circleR, circleR));
-		let circle = new paper.Path.Ellipse(circleBB);
+		let circle = new paper.Path.Circle(center, circleR);
 		if (!isOverlay) {
 			circle.fillColor = "white";
 		}
@@ -315,9 +323,6 @@ class CompoundCircle {
 				points.push(polar(mainR, i * subAngle + offsetAngle));
 			}
 		}
-		
-		// Locate the center
-		let center = new paper.Point(0,0);
 		
 		if (this.inverse) {
 			// Draw the inverse aspect, rather than the connectors
@@ -383,12 +388,11 @@ class CompoundCircle {
 					analysisPath2.closed = true;
 					group.addChild(analysisPath2);
 					group.addChild(analysisPath1);
-				// TODO: Support the rest of the inverses
 			}
 		}
 		else {
 			// Draw the connecting lines
-			if (this.size === 6) { // 6P has a special connector setup
+			if (this.size === 6 && this.overwrite === null) { // 6P has a special connector setup
 				// Draw the three outer lines
 				let phi = Math.acos(0.5 / this.amp);
 				// Since the 6P shape is treated as unamplified, further amplifying is possible as normal, even though this doesn't actually make sense
@@ -416,7 +420,7 @@ class CompoundCircle {
 		// Draw the override, if one exists
 		if (this.overlay !== null) {
 			
-			// If it's an override and not an inverse, draw the connecting lines
+			// If it's an override and not an inverse OR an overwrite, draw the connecting lines
 			if ((this.overlay instanceof ElementCircle) && !this.inverse) {
 				for (let i = 0; i<this.size; i++) {
 					if (!(this.size === 6 && i%2 === 1)) { // 6P only has half the override connectors
@@ -432,9 +436,43 @@ class CompoundCircle {
 			group.addChild(overlayImage);
 		}
 		let isOverlaid = (this.overlay !== null) && (!(this.overlay instanceof ElementCircle));
+
+		// Draw the overwrite, if one exists
+		if (this.overwrite !== null) {
+			// Draw the connector lines (same as an override but duplicated here)
+			for (let i = 0; i<this.size; i++) {
+					group.addChild(new paper.Path([center, points[i]]));
+			}
+
+			// Draw the central circle
+			let overwriteCircle = new paper.Path.Circle(center, R);
+			overwriteCircle.fillColor = "white";
+			group.addChild(overwriteCircle);
+
+			// Draw the specific overwrite symbol
+			switch (this.overwrite) {
+				case 6:
+					// Generate the outer and inner hex points
+					let innerHex = [];
+					let outerHex = [];
+					for (let i = 0; i<6; i++) {
+						let a = Math.PI*(i+0.5)/3
+						innerHex.push(polar(R/3, a));
+						outerHex.push(polar(R, a));
+					}
+					// Draw the inner hex
+					let innerHexDraw = new paper.Path(innerHex);
+					innerHexDraw.closed = true;
+					group.addChild(innerHexDraw);
+					// Draw the trapezoids
+					for (let i = 0; i<6; i += 2) {
+						group.addChild(new paper.Path(innerHex[i], outerHex[i], outerHex[i+1], innerHex[i+1]));
+					}
+					break;
+			}
+		}
 		
 		// Draw the component circles
-		// TODO: a dash for null circles
 		for (let i = 0; i<this.size; i++){
 			let sub = this.subcircles[i];
 			let point = points[i];
@@ -469,7 +507,7 @@ class CompoundCircle {
 		if (this.overlay !== null) {
 			overlay = this.overlay.copy();
 		}
-		return new CompoundCircle(subcircles, overlay, this.amp);
+		return new CompoundCircle(subcircles, overlay, this.amp, this.inverse, this.overwrite);
 	}
 
 	prepare() {
@@ -703,10 +741,20 @@ function parseShorthand(string) {
 	let bangs = searchOutsideParens(string, "!");
 	if (bangs.length > 0) {
 		let last = bangs.at(-1);
-		let left = parseShorthand(string.substring(0, last));
+		let leftString = string.substring(0, last);
 		let right = parseShorthand(string.substring(last+1));
-		right.overlay = left;
-		return right;
+		if (/^\d+$/.test(leftString)) {
+			// This is an overwrite with a numeric value
+			let left = parseInt(leftString);
+			right.overwrite = left;
+			return right
+		}
+		else {
+			// This is (presumably) an override or overlay
+			let left = parseShorthand(leftString);
+			right.overlay = left;
+			return right;
+		}
 	}
 	
 	// If trailing is + or ++, record amp and recurse
@@ -839,6 +887,9 @@ function cost(circle, caster=EMPTY_PROFILE, discounted=false, multiplier=1) {
 	else { // It must be a compound circle
 		let result = 0;
 		multiplier *= circle.amp;
+		if (circle.overwrite !== null) {
+			multiplier *= Math.floor(circle.overwrite/2);
+		}
 		if (circle.overlay != null) {
 			if (circle.overlay instanceof ElementCircle) {
 				if (!discounted && caster.affinity[circle.overlay.e.i]) {
@@ -849,8 +900,8 @@ function cost(circle, caster=EMPTY_PROFILE, discounted=false, multiplier=1) {
 			else if (circle.overlay instanceof CompoundCircle) {
 				result += cost(circle.overlay, caster, discounted, multiplier*2)
 			}
-			else { // It is a numerical value representing an overwrite
-				multiplier *= Math.floor(circle.overlay/2);
+			else {
+				// In the old framework this represents an overwrite, but now it should be unreachable
 			}
 		}
 		if (!discounted && allButOne(circle, caster)) {
